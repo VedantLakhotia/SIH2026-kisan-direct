@@ -1,45 +1,110 @@
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
-import { useState } from 'react';
-import Farmer from './pages/Farmer';
-import Consumer from './pages/Consumer';
-import CLead from './pages/CLead';
-import Admin from './pages/Admin';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth, AuthProvider } from './context/AuthContext';
+import Navbar from './components/Navbar';
+import Login from './pages/Login';
 
-function App() {
-  const [role, setRole] = useState('Farmer');
+// Farmer Pages
+import FarmerDashboard from './pages/farmer/FarmerDashboard';
+import CreateListing from './pages/farmer/CreateListing';
+import MyListings from './pages/farmer/MyListings';
+import PriceDiscovery from './pages/farmer/PriceDiscovery';
+import PickupRequests from './pages/farmer/PickupRequests';
+
+// Consumer Pages
+import ConsumerDashboard from './pages/consumer/ConsumerDashboard';
+import Marketplace from './pages/consumer/Marketplace';
+import PoolBuying from './pages/consumer/PoolBuying';
+import MyOrders from './pages/consumer/MyOrders';
+import OrderTracking from './pages/consumer/OrderTracking';
+
+// Lead Pages
+import LeadDashboard from './pages/lead/LeadDashboard';
+import ManagePools from './pages/lead/ManagePools';
+import PoolAnalytics from './pages/lead/PoolAnalytics';
+
+// Admin Pages
+import AdminDashboard from './pages/admin/AdminDashboard';
+import BatchPooling from './pages/admin/BatchPooling';
+import RouteOptimization from './pages/admin/RouteOptimization';
+import DeliveryMonitor from './pages/admin/DeliveryMonitor';
+
+// Driver Pages
+import DriverDashboard from './pages/driver/DriverDashboard';
+import ActiveDelivery from './pages/driver/ActiveDelivery';
+
+const ProtectedRoute = ({ children, roleRequired }) => {
+  const { user } = useAuth();
+  
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (roleRequired && user.role.toLowerCase() !== roleRequired.toLowerCase() && user.role.toLowerCase() !== 'admin') {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+};
+
+const RoleRedirect = () => {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/login" replace />;
+  
+  switch (user.role.toLowerCase()) {
+    case 'farmer': return <Navigate to="/farmer" replace />;
+    case 'consumer': return <Navigate to="/consumer" replace />;
+    case 'lead': return <Navigate to="/lead" replace />;
+    case 'admin': return <Navigate to="/admin" replace />;
+    case 'driver': return <Navigate to="/driver" replace />;
+    default: return <Navigate to="/login" replace />;
+  }
+};
+
+export default function App() {
+  const { user } = useAuth();
 
   return (
     <BrowserRouter>
-      {/* This header stays visible on every page */}
-      <header className="bg-green-700 text-white p-4 flex justify-between items-center">
-        <span className="font-bold">Society Farm App (Demo)</span>
-        <select
-          className="text-black rounded px-2 py-1"
-          value={role}
-          onChange={(e) => setRole(e.target.value)}
-        >
-          <option>Farmer</option>
-          <option>Consumer</option>
-          <option>Lead</option>
-          <option>Admin</option>
-        </select>
-        <div className="flex gap-4">
-          <Link to="/farmer">Farmer</Link>
-          <Link to="/consumer">Consumer</Link>
-          <Link to="/lead">Lead</Link>
-          <Link to="/admin">Admin</Link>
-        </div>
-      </header>
+      <div className="min-h-screen bg-green-50 flex flex-col">
+        {user && <Navbar />}
+        <main className="flex-grow">
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            
+            {/* Farmer Routes */}
+            <Route path="/farmer" element={<ProtectedRoute roleRequired="farmer"><FarmerDashboard /></ProtectedRoute>} />
+            <Route path="/farmer/create" element={<ProtectedRoute roleRequired="farmer"><CreateListing /></ProtectedRoute>} />
+            <Route path="/farmer/listings" element={<ProtectedRoute roleRequired="farmer"><MyListings /></ProtectedRoute>} />
+            <Route path="/farmer/prices" element={<ProtectedRoute roleRequired="farmer"><PriceDiscovery /></ProtectedRoute>} />
+            <Route path="/farmer/pickups" element={<ProtectedRoute roleRequired="farmer"><PickupRequests /></ProtectedRoute>} />
 
-      <Routes>
-        <Route path="/farmer" element={<Farmer />} />
-        <Route path="/consumer" element={<Consumer />} />
-        <Route path="/lead" element={<CLead />} />
-        <Route path="/admin" element={<Admin />} />
-        <Route path="/" element={<Consumer />} />
-      </Routes>
+            {/* Consumer Routes */}
+            <Route path="/consumer" element={<ProtectedRoute roleRequired="consumer"><ConsumerDashboard /></ProtectedRoute>} />
+            <Route path="/consumer/marketplace" element={<ProtectedRoute roleRequired="consumer"><Marketplace /></ProtectedRoute>} />
+            <Route path="/consumer/pools" element={<ProtectedRoute roleRequired="consumer"><PoolBuying /></ProtectedRoute>} />
+            <Route path="/consumer/orders" element={<ProtectedRoute roleRequired="consumer"><MyOrders /></ProtectedRoute>} />
+            <Route path="/consumer/tracking/:orderId" element={<ProtectedRoute roleRequired="consumer"><OrderTracking /></ProtectedRoute>} />
+
+            {/* Lead Routes */}
+            <Route path="/lead" element={<ProtectedRoute roleRequired="lead"><LeadDashboard /></ProtectedRoute>} />
+            <Route path="/lead/pools" element={<ProtectedRoute roleRequired="lead"><ManagePools /></ProtectedRoute>} />
+            <Route path="/lead/analytics" element={<ProtectedRoute roleRequired="lead"><PoolAnalytics /></ProtectedRoute>} />
+
+            {/* Admin Routes */}
+            <Route path="/admin" element={<ProtectedRoute roleRequired="admin"><AdminDashboard /></ProtectedRoute>} />
+            <Route path="/admin/batches" element={<ProtectedRoute roleRequired="admin"><BatchPooling /></ProtectedRoute>} />
+            <Route path="/admin/routes" element={<ProtectedRoute roleRequired="admin"><RouteOptimization /></ProtectedRoute>} />
+            <Route path="/admin/monitor" element={<ProtectedRoute roleRequired="admin"><DeliveryMonitor /></ProtectedRoute>} />
+
+            {/* Driver Routes */}
+            <Route path="/driver" element={<ProtectedRoute roleRequired="driver"><DriverDashboard /></ProtectedRoute>} />
+            <Route path="/driver/delivery/:deliveryId" element={<ProtectedRoute roleRequired="driver"><ActiveDelivery /></ProtectedRoute>} />
+
+            {/* Default Route */}
+            <Route path="/" element={<RoleRedirect />} />
+          </Routes>
+        </main>
+      </div>
     </BrowserRouter>
   );
 }
-
-export default App;

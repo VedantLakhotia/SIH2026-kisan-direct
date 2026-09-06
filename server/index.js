@@ -1,96 +1,72 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const pool = require('./db');
+const path = require('path');
+const fs = require('fs');
+const cron = require('node-cron');
+const db = require('./db');
 
 const app = express();
 app.use(cors());
-app.use(express.json()); // lets the server read JSON sent from React
+app.use(express.json());
 
-// Test route to confirm everything is connected
-app.get('/api/health', async (req, res) => {
-  const result = await pool.query('SELECT NOW()');
-  res.json({ status: 'connected', time: result.rows[0] });
+// Ensure uploads directories exist
+const uploadDir = path.join(__dirname, 'uploads');
+const tempDir = path.join(uploadDir, 'temp');
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
+if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
+
+// Serve static uploads
+app.use('/uploads', express.static(uploadDir));
+
+// Routes
+app.use('/api/users', require('./routes/users'));
+app.use('/api/listings', require('./routes/listings'));
+app.use('/api/voice', require('./routes/voice'));
+app.use('/api/prices', require('./routes/prices'));
+app.use('/api/pools', require('./routes/pools'));
+app.use('/api/orders', require('./routes/orders'));
+app.use('/api/pickups', require('./routes/pickups'));
+app.use('/api/batches', require('./routes/batches'));
+app.use('/api/deliveries', require('./routes/deliveries'));
+
+const priceEngine = require('./utils/priceEngine');
+
+// Cron job: Fetch live prices from Agmarknet every day at 6:00 AM
+cron.schedule('0 6 * * *', async () => {
+  console.log('Running morning cron job to fetch real Agmarknet prices...');
+  await priceEngine.refreshPrices();
 });
 
-const PORT = 4000;
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
-
-app.post('/api/orders', async (req, res) => {
-  const { consumer_id, pool_id, quantity_ordered, delivery_type } = req.body;
-
-  try {
-    // Step A: Insert the order
-    const orderResult = await pool.query(
-      `INSERT INTO orders (consumer_id, pool_id, quantity_ordered, delivery_type, status)
-       VALUES (₹1,₹2, ₹3, ₹4, 'Pending') RETURNING *`,
-      [consumer_id, pool_id, quantity_ordered, delivery_type]
-    );
-
-    // Step B: Update the pool's current_kg
-    await pool.query(
-      `UPDATE society_pools SET current_kg = current_kg + $1 WHERE id = $2`,
-      [quantity_ordered, pool_id]
-    );
-
-    res.json(orderResult.rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to place order' });
-  }
-});
-
-app.get('/api/pools/:societyId', async (req, res) => {
-  const result = await pool.query(
-    `SELECT * FROM society_pools WHERE society_id = $1`,
-    [req.params.societyId]
-  );
-  res.json(result.rows);
-});
-const cron = require('node-cron');
-
-// Runs every day at 10:00 PM
+// Cron job: Check open pools past deadline
 cron.schedule('0 22 * * *', async () => {
-  console.log('Running cutoff check...');
-  const pools = await pool.query(`SELECT * FROM society_pools WHERE status = 'Open'`);
-
-  for (const p of pools.rows) {
-    if (p.current_kg >= p.target_kg) {
-      await pool.query(`UPDATE society_pools SET status = 'Locked' WHERE id = $1`, [p.id]);
-      console.log(`Pool ${p.id} (${p.crop_name}) locked — target met! Notify farmer.`);
-      // TODO: trigger real notification (SMS/email/push) here
-    } else {
-      console.log(`Pool ${p.id} (${p.crop_name}) missed target — running fallback.`);
-      // Fallback example: mark as fulfilled anyway at a higher "Tier 2" price
-      // await pool.query(`UPDATE society_pools SET status = 'Fulfilled' WHERE id = $1`, [p.id]);
+  console.log('Running nightly cron job to check pool deadlines...');
+  try {
+    const res = await db.query(`
+      SELECT id, target_kg, current_kg 
+      FROM society_pools 
+      WHERE status = 'Open' AND deadline < CURRENT_DATE
+    `);
+    
+    for (let pool of res.rows) {
+      if (pool.current_kg >= pool.target_kg) {
+        await db.query(`UPDATE society_pools SET status = 'Locked' WHERE id = $1`, [pool.id]);
+        console.log(`Locked pool ${pool.id}`);
+      } else {
+        await db.query(`UPDATE society_pools SET status = 'Expired' WHERE id = $1`, [pool.id]);
+        console.log(`Expired pool ${pool.id}`);
+      }
     }
+  } catch (err) {
+    console.error('Error in cron job:', err);
   }
 });
-const multer = require('multer');
-const upload = multer(); // handles file uploads in memory
-const OpenAI = require('openai');
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-app.post('/api/voice-listing', upload.single('audio'), async (req, res) => {
-  try {
-    // Step 1: Transcribe speech to text using Whisper
-    const transcription = await openai.audio.transcriptions.create({
-      file: req.file.buffer,
-      model: 'whisper-1',
-    });
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
 
-    // Step 2: Ask a small language-model prompt to extract structured JSON
-    const extraction = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [{
-        role: 'user',
-        content: `Extract crop, quantity (number), and price (number) as JSON only from: "${transcription.text}"`
-      }],
-    });
-
-    const parsed = JSON.parse(extraction.choices[0].message.content);
-    res.json(parsed);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Voice parsing failed' });
-  }
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
