@@ -44,22 +44,22 @@ router.post('/', (req, res, next) => {
 });
 
 router.get('/', async (req, res) => {
-  let query = 'SELECT * FROM listings WHERE status = $1';
+  let query = 'SELECT l.*, u.name as farmer_name FROM listings l LEFT JOIN users u ON l.farmer_id = u.id WHERE l.status = $1';
   const params = ['Available'];
   let paramIndex = 2;
 
-  if (req.query.crop) { query += ` AND crop_name ILIKE $${paramIndex++}`; params.push(`%${req.query.crop}%`); }
-  if (req.query.grade) { query += ` AND grade = $${paramIndex++}`; params.push(req.query.grade); }
-  if (req.query.organic) { query += ` AND organic_cert = $${paramIndex++}`; params.push(req.query.organic === 'true'); }
-  if (req.query.minPrice) { query += ` AND price_per_kg >= $${paramIndex++}`; params.push(req.query.minPrice); }
-  if (req.query.maxPrice) { query += ` AND price_per_kg <= $${paramIndex++}`; params.push(req.query.maxPrice); }
+  if (req.query.crop) { query += ` AND l.crop_name ILIKE $${paramIndex++}`; params.push(`%${req.query.crop}%`); }
+  if (req.query.grade) { query += ` AND l.grade = $${paramIndex++}`; params.push(req.query.grade); }
+  if (req.query.organic) { query += ` AND l.organic_cert = $${paramIndex++}`; params.push(req.query.organic === 'true'); }
+  if (req.query.minPrice) { query += ` AND l.price_per_kg >= $${paramIndex++}`; params.push(req.query.minPrice); }
+  if (req.query.maxPrice) { query += ` AND l.price_per_kg <= $${paramIndex++}`; params.push(req.query.maxPrice); }
   if (req.query.search) {
-    query += ` AND (crop_name ILIKE $${paramIndex} OR description ILIKE $${paramIndex})`;
+    query += ` AND (l.crop_name ILIKE $${paramIndex} OR l.description ILIKE $${paramIndex})`;
     params.push(`%${req.query.search}%`);
     paramIndex++;
   }
 
-  query += ' ORDER BY id DESC'; // No created_at in schema, ordering by ID roughly equivalent to DESC creation
+  query += ' ORDER BY l.id DESC';
 
   try {
     const result = await db.query(query, params);
@@ -81,6 +81,7 @@ router.get('/farmer/:farmerId', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const result = await db.query('SELECT * FROM listings WHERE id = $1', [req.params.id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Listing not found' });
     res.json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -88,8 +89,19 @@ router.get('/:id', async (req, res) => {
 });
 
 router.put('/:id', async (req, res) => {
-  const { crop_name, quantity_kg, price_per_kg, description } = req.body;
+  const { crop_name, quantity_kg, price_per_kg, description, farmer_id } = req.body;
   try {
+    // Check existence
+    const check = await db.query('SELECT * FROM listings WHERE id = $1', [req.params.id]);
+    if (check.rows.length === 0) return res.status(404).json({ error: 'Listing not found' });
+    // Check authorization
+    if (farmer_id && check.rows[0].farmer_id !== parseInt(farmer_id)) {
+      return res.status(403).json({ error: 'Not authorized to edit this listing' });
+    }
+    // Only allow editing Available listings
+    if (check.rows[0].status !== 'Available') {
+      return res.status(400).json({ error: 'Cannot edit a listing that is not Available' });
+    }
     const result = await db.query(
       'UPDATE listings SET crop_name = $1, quantity_kg = $2, price_per_kg = $3, description = $4 WHERE id = $5 RETURNING *',
       [crop_name, quantity_kg, price_per_kg, description, req.params.id]
@@ -102,8 +114,17 @@ router.put('/:id', async (req, res) => {
 
 router.delete('/:id', async (req, res) => {
   try {
-    await db.query("UPDATE listings SET status = 'Expired' WHERE id = $1", [req.params.id]);
-    res.json({ success: true });
+    const { farmer_id } = req.body; // frontend must send farmer_id
+    const check = await db.query('SELECT * FROM listings WHERE id = $1', [req.params.id]);
+    if (check.rows.length === 0) return res.status(404).json({ error: 'Listing not found' });
+    if (farmer_id && check.rows[0].farmer_id !== parseInt(farmer_id)) {
+      return res.status(403).json({ error: 'Not authorized to delete this listing' });
+    }
+    const result = await db.query(
+      "DELETE FROM listings WHERE id = $1 RETURNING *",
+      [req.params.id]
+    );
+    res.json(result.rows[0]); // Return the deleted listing so frontend can update state
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

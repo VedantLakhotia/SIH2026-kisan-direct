@@ -205,7 +205,7 @@ export default function PickupRequests() {
                 <div key={p.id} className="border rounded p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-bold">{t('pickupRequests.requestId').replace('{{id}}', p.id)}</h3>
+                      <h3 className="font-bold">{t('pickupRequests.requestId', { id: p.id })}</h3>
                       <span className={`px-2 py-0.5 text-xs rounded-full ${getStatusColor(p.status)}`}>
                         {t(`pickupRequests.status${p.status}`) || p.status}
                       </span>

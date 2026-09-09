@@ -1,77 +1,17 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth, AuthProvider } from './context/AuthContext';
-import Navbar from './components/Navbar';
-import Login from './pages/Login';
-
-//Header and Footer
-import GovtHeader from './components/GovtHeader';
-import GovtFooter from './components/GovtFooter';
-
-// Farmer Pages
-import FarmerDashboard from './pages/farmer/FarmerDashboard';
-import CreateListing from './pages/farmer/CreateListing';
-import MyListings from './pages/farmer/MyListings';
-import PriceDiscovery from './pages/farmer/PriceDiscovery';
-import PickupRequests from './pages/farmer/PickupRequests';
-
-// Consumer Pages
-import ConsumerDashboard from './pages/consumer/ConsumerDashboard';
-import Marketplace from './pages/consumer/Marketplace';
-import PoolBuying from './pages/consumer/PoolBuying';
-import MyOrders from './pages/consumer/MyOrders';
-import OrderTracking from './pages/consumer/OrderTracking';
-
-// Lead Pages
-import LeadDashboard from './pages/lead/LeadDashboard';
-import ManagePools from './pages/lead/ManagePools';
-import PoolAnalytics from './pages/lead/PoolAnalytics';
-
-// Admin Pages
-import AdminDashboard from './pages/admin/AdminDashboard';
-import BatchPooling from './pages/admin/BatchPooling';
-import RouteOptimization from './pages/admin/RouteOptimization';
-import DeliveryMonitor from './pages/admin/DeliveryMonitor';
-
-// Driver Pages
-import DriverDashboard from './pages/driver/DriverDashboard';
-import ActiveDelivery from './pages/driver/ActiveDelivery';
-
-const ProtectedRoute = ({ children, roleRequired }) => {
-  const { user } = useAuth();
-  
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (roleRequired && user.role.toLowerCase() !== roleRequired.toLowerCase() && user.role.toLowerCase() !== 'admin') {
-    return <Navigate to="/" replace />;
-  }
-
-  return children;
-};
-
-const RoleRedirect = () => {
-  const { user } = useAuth();
-  if (!user) return <Navigate to="/login" replace />;
-  
-  switch (user.role.toLowerCase()) {
-    case 'farmer': return <Navigate to="/farmer" replace />;
-    case 'consumer': return <Navigate to="/consumer" replace />;
-    case 'lead': return <Navigate to="/lead" replace />;
-    case 'admin': return <Navigate to="/admin" replace />;
-    case 'driver': return <Navigate to="/driver" replace />;
-    default: return <Navigate to="/login" replace />;
-  }
-};
-
 export default function App() {
   const { user } = useAuth();
 
   return (
     <BrowserRouter>
       <div className="min-h-screen bg-gray-100 flex flex-col">
+        {/* ADD: Government header at top */}
+        <GovtHeader />
+        
+        {/* KEPT: Your current Navbar */}
         {user && <Navbar />}
-        <main className="flex-grow">
+
+        {/* KEPT: Your current pages and routes */}
+        <main id="main-content" className="flex-grow">
           <Routes>
             <Route path="/login" element={<Login />} />
             
@@ -106,8 +46,20 @@ export default function App() {
 
             {/* Default Route */}
             <Route path="/" element={<RoleRedirect />} />
+
+            {/* 404 Catch-All Route */}
+            <Route path="*" element={
+              <div className="p-8 text-center">
+                <h1 className="text-4xl font-bold text-gray-800 mb-4">404</h1>
+                <p className="text-gray-600 mb-4">Page not found</p>
+                <a href="/" className="text-[#004080] hover:underline font-medium">Go to Home</a>
+              </div>
+            } />
           </Routes>
         </main>
+
+        {/* ADD: Government footer at bottom */}
+        <GovtFooter />
       </div>
     </BrowserRouter>
   );

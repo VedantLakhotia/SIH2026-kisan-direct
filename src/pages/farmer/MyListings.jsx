@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import Toast from '../../components/Toast';
 
 export default function MyListings() {
   const { user } = useAuth();
@@ -13,6 +14,7 @@ export default function MyListings() {
   const [viewMode, setViewMode] = useState('grid');
   const [editingListing, setEditingListing] = useState(null);
   const [editForm, setEditForm] = useState({ crop_name: '', quantity_kg: '', price_per_kg: '', description: '' });
+  const [toast, setToast] = useState(null);
 
   useEffect(() => {
     fetchListings();
@@ -34,11 +36,24 @@ export default function MyListings() {
   const handleDelete = async (id) => {
     if (!window.confirm(t('myListings.deleteConfirm'))) return;
     try {
-      const res = await fetch(`http://localhost:4000/api/listings/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to delete');
-      setListings(listings.filter(l => l.id !== id));
+      const res = await fetch(`http://localhost:4000/api/listings/${id}`, { 
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ farmer_id: user.id })
+      });
+      
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to delete');
+      }
+      
+      // Remove the listing from the array
+      setListings(prevListings => 
+        prevListings.filter(l => l.id !== id)
+      );
+      setToast({ message: t('myListings.deleteSuccess'), type: 'success' });
     } catch (err) {
-      alert(err.message);
+      setToast({ message: err.message, type: 'error' });
     }
   };
 
@@ -64,9 +79,9 @@ export default function MyListings() {
       const updated = await res.json();
       setListings(listings.map(l => l.id === updated.id ? updated : l));
       setEditingListing(null);
-      alert(t('myListings.updateSuccess'));
+      setToast({ message: t('myListings.updateSuccess'), type: 'success' });
     } catch (err) {
-      alert(err.message);
+      setToast({ message: err.message, type: 'error' });
     }
   };
 
@@ -84,6 +99,7 @@ export default function MyListings() {
 
   return (
     <div className="max-w-6xl mx-auto p-4 md:p-6">
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-green-800">{t('myListings.title')}</h1>
         <Link to="/farmer/create" className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded shadow transition">

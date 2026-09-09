@@ -29,6 +29,7 @@ app.use('/api/orders', require('./routes/orders'));
 app.use('/api/pickups', require('./routes/pickups'));
 app.use('/api/batches', require('./routes/batches'));
 app.use('/api/deliveries', require('./routes/deliveries'));
+app.use('/api/demand', require('./routes/demand'));
 
 const priceEngine = require('./utils/priceEngine');
 

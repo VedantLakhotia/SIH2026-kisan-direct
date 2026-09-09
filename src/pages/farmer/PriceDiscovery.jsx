@@ -19,7 +19,7 @@ export default function PriceDiscovery() {
         
         <div className="space-y-6">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h3 className="font-bold text-blue-800 mb-2">💡 {t('priceDiscovery.tipsTitle')}</h3>
+            <h3 className="font-bold text-blue-800 mb-2">💡 {t('priceDiscovery.sellingTips')}</h3>
             <ul className="list-disc pl-5 space-y-2 text-sm text-blue-900">
               <li>{t('priceDiscovery.tip1')}</li>
               <li>{t('priceDiscovery.tip2')}</li>

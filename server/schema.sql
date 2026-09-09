@@ -60,7 +60,7 @@ CREATE TABLE society_pools (
   discount_percent NUMERIC(5,2) DEFAULT 10,
   description TEXT,
   deadline TIMESTAMP,
-  status VARCHAR(20) DEFAULT 'Open' CHECK (status IN ('Open','Locked','Fulfilled','Cancelled')),
+  status VARCHAR(20) DEFAULT 'Open' CHECK (status IN ('Open','Locked','Fulfilled','Cancelled','Expired')),
   created_at TIMESTAMP DEFAULT NOW()
 );
 

@@ -4,35 +4,48 @@ import { useAuth } from '../../context/AuthContext';
 export default function PoolAnalytics() {
   const { user } = useAuth();
   const [stats, setStats] = useState(null);
+  const [forecast, setForecast] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (!user?.society_id) return;
     
-    // In a real app, this endpoint would exist. For now we will mock the analytics data.
-    // fetch(`http://localhost:4000/api/pools/analytics/${user.society_id}`)
+    const fetchAnalyticsAndForecast = async () => {
+      try {
+        const res = await fetch(`http://localhost:4000/api/pools/analytics/${user.society_id}`);
+        if (res.ok) {
+          const data = await res.ok ? await res.json() : null;
+          if (data) {
+            setStats({
+              totalCreated: data.total_pools || 0,
+              fulfilled: data.total_pools - data.active_pools || 0,
+              cancelled: 0,
+              totalKg: data.total_kg || 0,
+              avgDiscount: data.avg_discount ? parseFloat(data.avg_discount).toFixed(1) : 0,
+              topCrops: data.top_crops?.map(c => ({ name: c.crop_name, kg: parseInt(c.count) * 100 })) || []
+            });
+            // Fetch AI demand forecast for top crop
+            if (data.top_crops && data.top_crops.length > 0) {
+              const crop = data.top_crops[0].crop_name;
+              const forecastRes = await fetch(`http://localhost:4000/api/demand/forecast/${crop}`);
+              if (forecastRes.ok) {
+                const forecastData = await forecastRes.json();
+                setForecast({ crop, text: forecastData.forecast });
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching analytics:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
     
-    setTimeout(() => {
-      setStats({
-        totalCreated: 42,
-        fulfilled: 35,
-        cancelled: 2,
-        totalKg: 4500,
-        avgDiscount: 18.5,
-        topCrops: [
-          { name: 'Tomatoes', kg: 1500 },
-          { name: 'Onions', kg: 1200 },
-          { name: 'Potatoes', kg: 900 },
-          { name: 'Apples', kg: 500 }
-        ]
-      });
-      setLoading(false);
-    }, 500);
+    fetchAnalyticsAndForecast();
   }, [user]);
 
   if (loading) return <div className="p-4">Loading analytics...</div>;
-  if (error) return <div className="text-red-500 p-4">{error}</div>;
   if (!stats) return <div className="p-4">No data available.</div>;
 
   const completionRate = ((stats.fulfilled / stats.totalCreated) * 100).toFixed(1);
@@ -80,6 +93,16 @@ export default function PoolAnalytics() {
           })}
         </div>
       </div>
+
+      {forecast && (
+        <div className="bg-blue-50 border border-blue-200 p-6 rounded-xl shadow mt-6">
+          <div className="flex items-center space-x-2 mb-3">
+            <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+            <h2 className="text-xl font-bold text-blue-900">AI Demand Forecast ({forecast.crop})</h2>
+          </div>
+          <p className="text-blue-800 italic">{forecast.text}</p>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
 const Navbar = () => {
@@ -117,10 +117,10 @@ const changeLanguage = (e) => {
                     
                     {showNotifications && (
                       <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-lg border z-50">
-                        <div className="p-3 border-b font-bold text-gray-800">Notifications</div>
+                        <div className="p-3 border-b font-bold text-gray-800">{t('navbar.notifications')}</div>
                         <div className="max-h-60 overflow-y-auto">
                           {notifications.length === 0 ? (
-                            <div className="p-4 text-center text-gray-500 text-sm">No new notifications</div>
+                            <div className="p-4 text-center text-gray-500 text-sm">{t('navbar.noNotifications')}</div>
                           ) : (
                             notifications.map(n => (
                               <div key={n.id} className="p-3 border-b hover:bg-gray-50 text-sm">
@@ -134,19 +134,17 @@ const changeLanguage = (e) => {
                     )}
                   </div>
                   <span className="text-sm font-medium">{user.name} ({user.role})</span>
-
-<select 
-  onChange={changeLanguage} 
-  defaultValue={i18n.language}
-  className="bg-green-800 text-white border border-green-500 rounded p-1 text-sm cursor-pointer"
->
-  <option value="en">English</option>
-  <option value="hi">हिंदी</option>
-</select>
-
-<button onClick={handleLogout} className="bg-green-800 hover:bg-green-600 px-3 py-1 rounded text-sm font-medium">
-  {t('navbar.logout')}
-</button>
+                  <select 
+                    onChange={changeLanguage} 
+                    defaultValue={i18n.language}
+                    className="bg-green-800 text-white border border-green-500 rounded p-1 text-sm cursor-pointer"
+                  >
+                    <option value="en">English</option>
+                    <option value="hi">हिंदी</option>
+                  </select>
+                  <button onClick={handleLogout} className="bg-green-800 hover:bg-green-600 px-3 py-1 rounded text-sm font-medium">
+                    {t('navbar.logout')}
+                  </button>
                 </>
               )}
             </div>
