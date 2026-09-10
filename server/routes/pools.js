@@ -64,10 +64,13 @@ router.post('/:id/join', async (req, res) => {
 router.get('/:id/members', async (req, res) => {
   try {
     const result = await db.query(
-      `SELECT po.*, u.name as consumer_name 
+      `SELECT po.*, u.name as consumer_name, u.phone as consumer_phone, u.address as consumer_address,
+              ROUND((po.quantity_kg * sp.price_per_kg)::numeric, 2) as total_price
        FROM pool_orders po 
        JOIN users u ON po.consumer_id = u.id 
-       WHERE po.pool_id = $1`,
+       JOIN society_pools sp ON po.pool_id = sp.id
+       WHERE po.pool_id = $1
+       ORDER BY po.id DESC`,
       [req.params.id]
     );
     res.json(result.rows);
@@ -79,7 +82,24 @@ router.get('/:id/members', async (req, res) => {
 router.put('/:id/lock', async (req, res) => {
   try {
     await db.query("UPDATE society_pools SET status = 'Locked' WHERE id = $1", [req.params.id]);
-    res.json({ success: true });
+    res.json({ success: true, status: 'Locked' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/:id/status', async (req, res) => {
+  const { status } = req.body;
+  const validStatuses = ['Open', 'Locked', 'Fulfilled', 'Cancelled'];
+  if (!validStatuses.includes(status)) {
+    return res.status(400).json({ error: 'Invalid pool status' });
+  }
+  try {
+    const result = await db.query(
+      "UPDATE society_pools SET status = $1 WHERE id = $2 RETURNING *",
+      [status, req.params.id]
+    );
+    res.json({ success: true, pool: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -28,33 +28,71 @@ router.post('/direct', async (req, res) => {
 router.get('/consumer/:consumerId', async (req, res) => {
   try {
     const directOrders = await db.query(
-      `SELECT do.*, l.crop_name, 'direct' as order_category 
+      `SELECT do.id as order_id, do.id, do.consumer_id, do.listing_id, do.quantity_kg, do.total_price,
+              do.delivery_type, do.status, do.delivery_id, do.created_at,
+              l.crop_name, l.price_per_kg, 'Direct' as order_type, 'direct' as order_category 
        FROM direct_orders do 
        JOIN listings l ON do.listing_id = l.id 
        WHERE do.consumer_id = $1`,
       [req.params.consumerId]
     );
     const poolOrders = await db.query(
-      `SELECT po.*, sp.crop_name, 'pool' as order_category 
+      `SELECT po.id as order_id, po.id, po.consumer_id, po.pool_id, po.quantity_kg,
+              ROUND((po.quantity_kg * sp.price_per_kg)::numeric, 2) as total_price,
+              po.delivery_type, po.status, NULL as delivery_id, po.created_at,
+              sp.crop_name, sp.price_per_kg, 'Pool' as order_type, 'pool' as order_category 
        FROM pool_orders po 
        JOIN society_pools sp ON po.pool_id = sp.id 
        WHERE po.consumer_id = $1`,
       [req.params.consumerId]
     );
-    res.json([...directOrders.rows, ...poolOrders.rows]);
+    const allOrders = [...directOrders.rows, ...poolOrders.rows].sort(
+      (a, b) => new Date(b.created_at) - new Date(a.created_at)
+    );
+    res.json(allOrders);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 router.get('/:id', async (req, res) => {
-  // Needs to handle either order type, assumes caller knows or we check direct first
+  const { type } = req.query;
   try {
-    let order = await db.query('SELECT * FROM direct_orders WHERE id = $1', [req.params.id]);
-    if (order.rows.length === 0) {
-      order = await db.query('SELECT * FROM pool_orders WHERE id = $1', [req.params.id]);
+    let order = null;
+    if (type?.toLowerCase() === 'pool') {
+      const poolOrderRes = await db.query(
+        `SELECT po.*, po.id as order_id, sp.crop_name, sp.price_per_kg,
+                ROUND((po.quantity_kg * sp.price_per_kg)::numeric, 2) as total_price,
+                'Pool' as order_type
+         FROM pool_orders po
+         JOIN society_pools sp ON po.pool_id = sp.id
+         WHERE po.id = $1`,
+        [req.params.id]
+      );
+      order = poolOrderRes.rows[0];
+    } else {
+      const directOrderRes = await db.query(
+        `SELECT do.*, do.id as order_id, l.crop_name, l.price_per_kg, 'Direct' as order_type
+         FROM direct_orders do
+         JOIN listings l ON do.listing_id = l.id
+         WHERE do.id = $1`,
+        [req.params.id]
+      );
+      order = directOrderRes.rows[0];
+      if (!order) {
+        const poolOrderRes = await db.query(
+          `SELECT po.*, po.id as order_id, sp.crop_name, sp.price_per_kg,
+                  ROUND((po.quantity_kg * sp.price_per_kg)::numeric, 2) as total_price,
+                  'Pool' as order_type
+           FROM pool_orders po
+           JOIN society_pools sp ON po.pool_id = sp.id
+           WHERE po.id = $1`,
+          [req.params.id]
+        );
+        order = poolOrderRes.rows[0];
+      }
     }
-    res.json(order.rows[0] || null);
+    res.json(order || null);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

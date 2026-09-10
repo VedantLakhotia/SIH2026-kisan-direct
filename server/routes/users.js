@@ -7,9 +7,11 @@ router.post('/login', async (req, res) => {
   try {
     let result = await db.query('SELECT * FROM users WHERE name = $1 AND role = $2', [name, role]);
     if (result.rows.length === 0) {
+      const society_name = (role === 'Consumer' || role === 'Lead') ? 'Amrapali Society' : null;
+      const society_id = (role === 'Consumer' || role === 'Lead') ? 1 : null;
       result = await db.query(
-        'INSERT INTO users (name, role) VALUES ($1, $2) RETURNING *',
-        [name, role]
+        'INSERT INTO users (name, role, society_name, society_id) VALUES ($1, $2, $3, $4) RETURNING *',
+        [name, role, society_name, society_id]
       );
     }
     res.json(result.rows[0]);
