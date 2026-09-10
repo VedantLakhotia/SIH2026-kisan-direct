@@ -18,7 +18,7 @@ router.get('/forecast/:crop', async (req, res) => {
       priceHistoryContext = pastPrices.rows.map(row => `${new Date(row.date).toLocaleDateString()}: ₹${row.modal_price}`).join(', ');
     }
 
-    if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === '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') {
+    if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'YOUR_OPENAI_API_KEY') {
       // Fallback dummy AI response if no valid key is provided
       return res.json({
         forecast: `Based on simulated market trend analysis and regional historical data, demand for ${crop} is forecasted to grow steadily over the coming weeks. We anticipate a 10-15% increase in purchase volume, which could place a mild upward pressure on prices.`,
