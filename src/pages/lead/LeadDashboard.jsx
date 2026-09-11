@@ -28,7 +28,7 @@ export default function LeadDashboard() {
   if (error) return <div className="text-red-500 p-4">{error}</div>;
 
   const activePools = pools.filter(p => p.status === 'Open');
-  const totalKg = pools.reduce((sum, p) => sum + parseFloat(p.current_kg || 0), 0);
+  const totalKg = pools.reduce((sum, p) => sum + parseFloat(p.current_kg || 0), 0);   
   
   return (
     <div className="max-w-6xl mx-auto space-y-6">

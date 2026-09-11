@@ -40,17 +40,36 @@ const PoolCard = ({ pool, onJoin }) => {
     return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">{status}</span>;
   };
 
+  const CROP_IMAGES = {
+    'Tomato': 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=500&q=80',
+    'Tomatoes': 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=500&q=80',
+    'Potato': 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=500&q=80',
+    'Onion': 'https://images.unsplash.com/photo-1620574387735-3624d75b2dbc?w=500&q=80',
+    'Cauliflower': 'https://images.unsplash.com/photo-1568584711075-3d021a7c3ca3?w=500&q=80',
+    'Banana': 'https://images.unsplash.com/photo-1603833665858-e61d17a86224?w=500&q=80',
+    'Spinach': 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=500&q=80',
+    'Cabbage': 'https://images.unsplash.com/photo-1596199050105-6d5d32222916?w=500&q=80',
+    'Rice': 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=500&q=80'
+  };
+
+  const getImageUrl = () => {
+    return CROP_IMAGES[crop_name] || 'https://images.unsplash.com/photo-1500937386664-56d1dfef3854?w=500&q=80';
+  };
+
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow bg-white flex flex-col h-full">
-      <div className="bg-green-50 p-4 border-b border-gray-200 flex justify-between items-start">
+      <div className="relative h-32 bg-gray-200">
+        <img src={getImageUrl()} alt={crop_name} className="w-full h-full object-cover" />
+        <div className="absolute top-2 right-2">
+          <span className="inline-block bg-orange-500 text-white shadow text-sm font-bold px-3 py-1 rounded-full">
+            {discount_percentage}% OFF
+          </span>
+        </div>
+      </div>
+      <div className="bg-white p-4 border-b border-gray-200 flex justify-between items-start">
         <div>
           <h3 className="text-lg font-bold text-gray-800">{crop_name} Pool</h3>
           <p className="text-sm text-gray-500 mt-1">₹{base_price}/kg Base Price</p>
-        </div>
-        <div className="text-right">
-          <span className="inline-block bg-orange-100 text-orange-800 text-sm font-bold px-3 py-1 rounded-full">
-            {discount_percentage}% OFF
-          </span>
         </div>
       </div>
       

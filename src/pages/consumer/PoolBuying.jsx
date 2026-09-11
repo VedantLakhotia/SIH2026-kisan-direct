@@ -34,25 +34,94 @@ export default function PoolBuying() {
     setShowModal(true);
   };
 
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if (window.Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
   const handleJoin = async (e) => {
     e.preventDefault();
     if (!selectedPool || !joinQty) return;
     
     try {
-      const res = await fetch(`http://localhost:4000/api/pools/${selectedPool.id}/join`, {
+      const totalPrice = Math.round(joinQty * selectedPool.price_per_kg);
+      
+      // 1. Create Razorpay Order via escrow backend
+      const orderRes = await fetch('http://localhost:4000/api/payment/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          consumer_id: user.id,
-          quantity_kg: joinQty,
-          delivery_type: deliveryType
+          amount: totalPrice,
+          farmerId: null, // No specific farmer mapped per pool right now
+          driverId: 5, // Default driver for demo
+          leadId: selectedPool.lead_id || 3
         })
       });
-      if (!res.ok) throw new Error('Failed to join pool');
-      
-      alert('Successfully joined the pool!');
-      setShowModal(false);
-      fetchPools(); // refresh
+      if (!orderRes.ok) throw new Error('Failed to initialize payment');
+      const orderData = await orderRes.json();
+
+      // 2. Load Razorpay and open modal
+      const isLoaded = await loadRazorpayScript();
+      if (!isLoaded) throw new Error("Razorpay SDK failed to load");
+
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+        amount: totalPrice * 100, // paise
+        currency: "INR",
+        name: "KisanDirect Community Pools",
+        description: `Joining ${selectedPool.crop_name} Pool for ${joinQty}kg`,
+        order_id: orderData.razorpayOrderId,
+        handler: async function (response) {
+          try {
+            // 3. Verify Payment Signature
+            const verifyRes = await fetch('http://localhost:4000/api/payment/verify-escrow', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                orderId: orderData.order.id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature
+              })
+            });
+            if (!verifyRes.ok) throw new Error("Signature verification failed");
+            
+            // 4. Record the pool order
+            const res = await fetch(`http://localhost:4000/api/pools/${selectedPool.id}/join`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                consumer_id: user.id,
+                quantity_kg: joinQty,
+                delivery_type: deliveryType
+              })
+            });
+            if (!res.ok) throw new Error('Failed to join pool');
+            
+            alert('Successfully joined the pool!');
+            setShowModal(false);
+            fetchPools(); // refresh
+          } catch (err) {
+            alert(err.message);
+          }
+        },
+        theme: { color: "#2563eb" } // blue-600
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', function(response) {
+        alert("Payment Failed: " + response.error.description);
+      });
+      rzp.open();
     } catch (err) {
       alert(err.message);
     }
@@ -106,7 +175,7 @@ export default function PoolBuying() {
                 <label className="block text-sm font-medium text-gray-700">Quantity (kg)</label>
                 <input 
                   type="number" required min="1" 
-                  max={selectedPool.target_kg - selectedPool.current_kg}
+                  max={Math.max(1, selectedPool.target_kg - selectedPool.current_kg)}
                   className="mt-1 block w-full border border-gray-300 rounded p-2"
                   value={joinQty}
                   onChange={e => setJoinQty(e.target.value)}
@@ -129,9 +198,9 @@ export default function PoolBuying() {
               </div>
 
               <div className="bg-gray-50 p-3 rounded text-right">
-                <p className="text-sm text-gray-600">Estimated Total:</p>
+                <p className="text-sm text-gray-600">Total Price:</p>
                 <p className="text-2xl font-bold text-blue-700">₹{(joinQty * selectedPool.price_per_kg).toFixed(2)}</p>
-                <p className="text-xs text-gray-500 mt-1">Payment collected upon delivery</p>
+                <p className="text-xs text-green-600 font-medium mt-1">Pay securely via Escrow</p>
               </div>
 
               <div className="flex gap-3">

@@ -113,7 +113,15 @@ async function refreshPrices() {
 
     // Get the unique crops we care about to update
     const res = await db.query(`SELECT DISTINCT crop_name FROM price_data`);
-    const myCrops = res.rows.map(r => r.crop_name.toLowerCase());
+    let myCrops = res.rows.map(r => r.crop_name.toLowerCase());
+
+    if (myCrops.length === 0) {
+      myCrops = [
+        'tomato', 'onion', 'potato', 'cauliflower', 'spinach', 
+        'cabbage', 'wheat', 'rice', 'mango', 'banana', 
+        'carrot', 'brinjal', 'okra', 'peas'
+      ];
+    }
 
     for (let record of records) {
       // data.gov.in fields: commodity, market, min_price, max_price, modal_price

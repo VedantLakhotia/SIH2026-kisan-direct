@@ -28,16 +28,27 @@ const ListingCard = ({ listing, onBuy }) => {
     return new Date(dateString).toLocaleDateString(undefined, options);
   };
 
+  const CROP_IMAGES = {
+    'Tomato': 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=500&q=80',
+    'Tomatoes': 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=500&q=80',
+    'Potato': 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=500&q=80',
+    'Onion': 'https://images.unsplash.com/photo-1620574387735-3624d75b2dbc?w=500&q=80',
+    'Cauliflower': 'https://images.unsplash.com/photo-1568584711075-3d021a7c3ca3?w=500&q=80',
+    'Banana': 'https://images.unsplash.com/photo-1603833665858-e61d17a86224?w=500&q=80',
+    'Spinach': 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=500&q=80',
+    'Cabbage': 'https://images.unsplash.com/photo-1596199050105-6d5d32222916?w=500&q=80',
+    'Rice': 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=500&q=80'
+  };
+
+  const getImageUrl = () => {
+    if (photo_url && photo_url.startsWith('http')) return photo_url;
+    return CROP_IMAGES[crop_name] || 'https://images.unsplash.com/photo-1500937386664-56d1dfef3854?w=500&q=80';
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col h-full hover:shadow-lg transition-shadow">
       <div className="relative h-48 bg-gray-200">
-        {photo_url ? (
-          <img src={photo_url} alt={crop_name} className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-green-50 text-green-800 text-4xl">
-            🌾
-          </div>
-        )}
+        <img src={getImageUrl()} alt={crop_name} className="w-full h-full object-cover" />
         <div className="absolute top-2 right-2 flex flex-col gap-2">
           {getGradeBadge(grade)}
           {organic_cert && (

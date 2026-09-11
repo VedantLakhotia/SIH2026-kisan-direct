@@ -45,26 +45,96 @@ export default function Marketplace() {
     setShowModal(true);
   };
 
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if (window.Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
   const handlePurchase = async (e) => {
     e.preventDefault();
     if (!selectedListing || !buyQty) return;
     
     try {
-      const res = await fetch('http://localhost:4000/api/orders/direct', {
+      const totalPrice = Math.round(buyQty * selectedListing.price_per_kg);
+      
+      // 1. Create Razorpay Order via escrow backend
+      const orderRes = await fetch('http://localhost:4000/api/payment/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          consumer_id: user.id,
-          listing_id: selectedListing.id,
-          quantity_kg: buyQty,
-          delivery_type: deliveryType
+          amount: totalPrice,
+          farmerId: selectedListing.farmer_id,
+          driverId: 5, // Default driver for demo
+          leadId: 3 // Default lead for demo
         })
       });
-      if (!res.ok) throw new Error('Failed to place order');
+      if (!orderRes.ok) throw new Error('Failed to initialize payment');
+      const orderData = await orderRes.json();
+
+      // 2. Load Razorpay and open modal
+      const isLoaded = await loadRazorpayScript();
+      if (!isLoaded) throw new Error("Razorpay SDK failed to load");
+
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+        amount: totalPrice * 100, // paise
+        currency: "INR",
+        name: "KisanDirect Marketplace",
+        description: `Buying ${buyQty}kg of ${selectedListing.crop_name}`,
+        order_id: orderData.razorpayOrderId,
+        handler: async function (response) {
+          try {
+            // 3. Verify Payment Signature
+            const verifyRes = await fetch('http://localhost:4000/api/payment/verify-escrow', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                orderId: orderData.order.id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature
+              })
+            });
+            if (!verifyRes.ok) throw new Error("Signature verification failed");
+            
+            // 4. Record the direct marketplace order
+            const res = await fetch('http://localhost:4000/api/orders/direct', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                consumer_id: user.id,
+                listing_id: selectedListing.id,
+                quantity_kg: buyQty,
+                delivery_type: deliveryType
+              })
+            });
+            if (!res.ok) throw new Error('Failed to record order details in DB');
+            
+            alert('Payment Successful & Order placed securely!');
+            setShowModal(false);
+            fetchListings(); // refresh available quantities
+          } catch (err) {
+            alert(err.message);
+          }
+        },
+        theme: { color: "#27ae60" }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', function(response) {
+        alert("Payment Failed: " + response.error.description);
+      });
+      rzp.open();
       
-      alert('Order placed successfully!');
-      setShowModal(false);
-      fetchListings(); // refresh available quantities
     } catch (err) {
       alert(err.message);
     }
@@ -160,7 +230,7 @@ export default function Marketplace() {
               <div>
                 <label className="block text-sm font-medium text-gray-700">Quantity (kg)</label>
                 <input 
-                  type="number" required min="1" max={selectedListing.quantity_kg}
+                  type="number" required min="1" max={Math.max(1, selectedListing.quantity_kg)}
                   className="mt-1 block w-full border border-gray-300 rounded p-2"
                   value={buyQty}
                   onChange={e => setBuyQty(e.target.value)}

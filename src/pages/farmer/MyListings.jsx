@@ -97,6 +97,22 @@ export default function MyListings() {
     { key: 'Expired', label: t('myListings.filterExpired') }
   ];
 
+  const CROP_IMAGES = {
+    'Tomato': 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=500&q=80',
+    'Tomatoes': 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=500&q=80',
+    'Potato': 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=500&q=80',
+    'Onion': 'https://images.unsplash.com/photo-1620574387735-3624d75b2dbc?w=500&q=80',
+    'Cauliflower': 'https://images.unsplash.com/photo-1568584711075-3d021a7c3ca3?w=500&q=80',
+    'Banana': 'https://images.unsplash.com/photo-1603833665858-e61d17a86224?w=500&q=80',
+    'Spinach': 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=500&q=80',
+    'Cabbage': 'https://images.unsplash.com/photo-1596199050105-6d5d32222916?w=500&q=80',
+    'Rice': 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=500&q=80'
+  };
+
+  const getImageUrl = (crop_name) => {
+    return CROP_IMAGES[crop_name] || 'https://images.unsplash.com/photo-1500937386664-56d1dfef3854?w=500&q=80';
+  };
+
   return (
     <div className="max-w-6xl mx-auto p-4 md:p-6">
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
@@ -132,26 +148,38 @@ export default function MyListings() {
       ) : (
         <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'}>
           {filteredListings.map(listing => (
-            <div key={listing.id} className={`bg-white rounded shadow p-4 ${viewMode === 'list' ? 'flex items-center justify-between' : ''}`}>
-              <div>
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="text-lg font-bold">{listing.crop_name}</h3>
-                  <span className={`px-2 py-1 text-xs rounded-full ${listing.status === 'Available' ? 'bg-green-100 text-green-800' : listing.status === 'Sold' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}`}>
-                    {filterOptions.find(o => o.key === listing.status)?.label || listing.status}
-                  </span>
-                </div>
-                <div className="text-sm text-gray-600 space-y-1">
-                  <p>{t('myListings.quantity')} {listing.quantity_kg} kg</p>
-                  <p>{t('myListings.price')} ₹{listing.price_per_kg}/kg</p>
-                  <p>{t('myListings.grade')} {listing.grade}</p>
-                  <p>{t('myListings.listed')} {new Date(listing.created_at).toLocaleDateString()}</p>
-                </div>
+            <div key={listing.id} className={`bg-white rounded-lg shadow overflow-hidden ${viewMode === 'list' ? 'flex items-center' : 'flex flex-col'}`}>
+              <div className={`${viewMode === 'list' ? 'w-48 h-32' : 'w-full h-48'} shrink-0`}>
+                <img src={getImageUrl(listing.crop_name)} alt={listing.crop_name} className="w-full h-full object-cover" />
               </div>
-              <div className={`flex gap-2 ${viewMode === 'grid' ? 'mt-4' : ''}`}>
-                <button onClick={() => handleEdit(listing)} className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200">{t('myListings.edit')}</button>
-                {listing.status === 'Available' && (
-                  <button onClick={() => handleDelete(listing.id)} className="px-3 py-1 bg-red-100 text-red-800 rounded hover:bg-red-200">{t('myListings.delete')}</button>
-                )}
+              <div className={`p-4 flex-grow ${viewMode === 'list' ? 'flex justify-between items-center' : ''}`}>
+                <div>
+                  <div className="flex justify-between items-start mb-2 gap-4">
+                    <h3 className="text-lg font-bold">{listing.crop_name}</h3>
+                    {viewMode === 'grid' && (
+                      <span className={`px-2 py-1 text-xs rounded-full ${listing.status === 'Available' ? 'bg-green-100 text-green-800' : listing.status === 'Sold' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}`}>
+                        {filterOptions.find(o => o.key === listing.status)?.label || listing.status}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-sm text-gray-600 space-y-1">
+                    <p>{t('myListings.quantity')} {listing.quantity_kg} kg</p>
+                    <p>{t('myListings.price')} ₹{listing.price_per_kg}/kg</p>
+                    {viewMode === 'list' && <p>{t('myListings.grade')} {listing.grade}</p>}
+                    <p>{t('myListings.listed')} {new Date(listing.created_at).toLocaleDateString()}</p>
+                  </div>
+                  {viewMode === 'list' && (
+                      <span className={`inline-block mt-2 px-2 py-1 text-xs rounded-full ${listing.status === 'Available' ? 'bg-green-100 text-green-800' : listing.status === 'Sold' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}`}>
+                        {filterOptions.find(o => o.key === listing.status)?.label || listing.status}
+                      </span>
+                  )}
+                </div>
+                <div className={`flex gap-2 ${viewMode === 'grid' ? 'mt-4' : 'ml-4'}`}>
+                  <button onClick={() => handleEdit(listing)} className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200">{t('myListings.edit')}</button>
+                  {listing.status === 'Available' && (
+                    <button onClick={() => handleDelete(listing.id)} className="px-3 py-1 bg-red-100 text-red-800 rounded hover:bg-red-200">{t('myListings.delete')}</button>
+                  )}
+              </div>
               </div>
             </div>
           ))}

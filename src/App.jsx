@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth, AuthProvider } from './context/AuthContext';
 import Navbar from './components/Navbar';
 import Login from './pages/Login';
+import DemoEscrow from './pages/DemoEscrow';
 
 //Header and Footer
 import GovtHeader from './components/GovtHeader';
@@ -103,6 +104,9 @@ export default function App() {
             {/* Driver Routes */}
             <Route path="/driver" element={<ProtectedRoute roleRequired="driver"><DriverDashboard /></ProtectedRoute>} />
             <Route path="/driver/delivery/:deliveryId" element={<ProtectedRoute roleRequired="driver"><ActiveDelivery /></ProtectedRoute>} />
+
+            {/* Hackathon Demo Route */}
+            <Route path="/demo-escrow" element={<DemoEscrow />} />
 
             {/* Default Route */}
             <Route path="/" element={<RoleRedirect />} />
